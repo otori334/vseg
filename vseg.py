@@ -111,6 +111,8 @@ with tempfile.TemporaryDirectory() as dname1:
         
         # 動画を繋げる
         print("Merging videos...")
-        command = "ffmpeg -f concat -safe 0 -i <(for f in "+dname2+"/*.mov; do echo \"file $f\"; done) '"+dest_mov_name+"'"
-        #sb.call(command, shell=True)
+        target_list = os.path.join(dname1, 'target_list.txt')
+        command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+"ffmpeg -loglevel quiet -safe 0 -f concat -i '"+target_list+"' -c copy '"+dest_mov_name+"'"
+        
+        sb.call(command, shell=True)
         

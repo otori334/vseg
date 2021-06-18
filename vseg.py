@@ -2,6 +2,7 @@
 # Original: https://gist.github.com/tam17aki/11eb1566a2d48b382607d23dddb98891
         # https://qiita.com/Nahuel/items/aba4eaabd686a1d89c37
         # https://nantekottai.com/2020/06/14/video-cut-silence/
+        # https://tam5917.hatenablog.com/entry/2020/01/25/132113
 
 # How To Use
 # python3 vseg.py [inputfile] [outputfile]
@@ -52,20 +53,21 @@ with tempfile.TemporaryDirectory() as dname1:
     segmentation = seg(tmp_wav_name)
     print("End of interval detection")
     
+    """
     # 断片の数を確認
     if len(segmentation) == 1:
         print("The number of fragments is one.")
         sys.exit()
+    """
     
     # 音声区間
-    speech = np.array([row for row in segmentation if 'speech' in row])[:, 1:3].astype(np.float32)
+    speech = np.array([row for row in segmentation if 'speech' in row])[:, 1:3].astype(np.float16)
     duration = speech[:, 1] - speech[:, 0]
     # 瞬間的に音がなっている箇所を除く
-    speech = np.delete(speech, speech[:, 1] - speech[:, 0] < min_keep_duration, 0)
-    bool = duration < min_keep_duration
-    speech = np.delete(speech, bool, 0)
-    duration = np.delete(duration, bool, 0)
-    del bool
+    bool_list = duration < min_keep_duration
+    speech = np.delete(speech, bool_list, 0)
+    duration = np.delete(duration, bool_list, 0)
+    del bool_list
     
     # 区間ごとのラベル,開始時間,終了時間をcsv形式で保存
     #seg2csv(segmentation, 'segResult.csv')
@@ -73,30 +75,41 @@ with tempfile.TemporaryDirectory() as dname1:
 
     # 分離した音声ファイルをwaveモジュールで読み込む
     with wave.open(tmp_wav_name) as wav:
-        data = np.frombuffer(wav.readframes(wav.getnframes()), dtype=np.int16).copy()
-        sample_rate = wav.getframerate()
-        channels = wav.getnchannels()
+        samplewidth = wav.getsampwidth()
+        nchannels = wav.getnchannels()
+        framerate = wav.getframerate()
+        nframes = wav.getnframes()
+        framerate_nchannels = framerate * nchannels
+        if samplewidth == 2:
+            data = np.frombuffer(wav.readframes(nframes), dtype='int16').copy()
+        elif samplewidth == 4:
+            data = np.frombuffer(wav.readframes(nframes), dtype='int32').copy()
+        else:
+            # https://qiita.com/Dsuke-K/items/2ad4945a81644db1e9ff
+            print("Sample width : ", samplewidth)
+            sys.exit()
     
     # speechではない長い区間を検出し，無音データで埋める
     print("Detecting a long section that is not a speech...")
     for i in tqdm(range(len(speech) - 1)):
         if (speech[i + 1][0] - speech[i][1] > padding_silence_duration):
-            data[round(speech[i][1] * sample_rate):round(speech[i + 1][0] * sample_rate)] = 0
+            data[round(speech[i][1] * framerate_nchannels):round(speech[i + 1][0] * framerate_nchannels)] = 0
             # 余白を挿入する
             speech[i][1] += padding_time
             speech[i + 1][0] -= padding_time
     
     # 加工した音声データを書き出す
     with wave.open(tmp_wav_name, 'w') as wav:
-        wav.setsampwidth(2) # サンプルサイズ2byte
-        wav.setframerate(sample_rate)
-        wav.setnchannels(channels)
+        wav.setsampwidth(samplewidth)
+        wav.setframerate(framerate)
+        wav.setnchannels(nchannels)
         wav.writeframes(data)
     
     # 動画の音声を差し替える
     print("Replacing audio...")
     command = "ffmpeg -i '"+input_video_name+"' -loglevel info -i '"+tmp_wav_name+"' -c:v copy -c:a aac -strict experimental -map 0:v -map 1:a '"+tmp_mov_name+"'"
     sb.call(command, shell=True)
+    print("Replacement completed.")
     
     # 動画を切り出す
     speech = speech.astype('str')
@@ -112,7 +125,10 @@ with tempfile.TemporaryDirectory() as dname1:
         # 動画を繋げる
         print("Merging videos...")
         target_list = os.path.join(dname1, 'target_list.txt')
-        command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+"ffmpeg -loglevel quiet -safe 0 -f concat -i '"+target_list+"' -c copy '"+dest_mov_name+"'"
+        # 遅いが正確でファイルサイズはやや小さい
+        #command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; ffmpeg -loglevel info -safe 0 -f concat -i '"+target_list+"' '"+dest_mov_name+"'"
+        # 速いが不正確でファイルサイズはやや大きい
+        command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; ffmpeg -loglevel quiet -safe 0 -f concat -i '"+target_list+"' -c copy '"+dest_mov_name+"'"
         
         sb.call(command, shell=True)
         

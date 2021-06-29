@@ -2,7 +2,7 @@
 # Original: https://gist.github.com/tam17aki/11eb1566a2d48b382607d23dddb98891
         # https://qiita.com/Nahuel/items/aba4eaabd686a1d89c37
         # https://nantekottai.com/2020/06/14/video-cut-silence/
-        # https://tam5917.hatenablog.com/entry/2020/01/25/132113
+        # https://tam5917.hatenablog.com/entry/2020/01/25/132113 # バグがあるけど参考になる
 
 # How To Use
 # python3 vseg.py [inputfile] [outputfile]

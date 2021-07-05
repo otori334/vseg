@@ -61,7 +61,7 @@ with tempfile.TemporaryDirectory() as dname1:
     """
     
     # 音声区間
-    speech = np.array([row for row in segmentation if 'speech' in row])[:, 1:3].astype(np.float16)
+    speech = np.array([row for row in segmentation if 'speech' in row])[:, 1:3].astype(np.float32) # float16 では小数部分が切り捨てられてしまう
     duration = speech[:, 1] - speech[:, 0]
     # 瞬間的に音がなっている箇所を除く
     bool_list = duration < min_keep_duration

@@ -31,6 +31,7 @@ parser = argparse.ArgumentParser(description='Video Segmentation Using inaSpeech
 parser.add_argument('arg1', help='[inputfile]')
 parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
+parser.add_argument('-i', '--insert', default=None, help='[pathname of insert wav file]')
 args = parser.parse_args()
 input_video_name = os.path.abspath(args.arg1)
 dest_mov_name = os.path.abspath(args.arg2)
@@ -40,21 +41,28 @@ if args.csv == None or os.path.isfile(args.csv) == False:
 else:
     dest_csv_name = os.path.abspath(args.csv)
 
+# 入力の絶対パスを解析
+if os.path.isfile(input_video_name) == False:
+    print("The first argument should be an existing file.")
+    sys.exit()
+if os.path.isfile(dest_mov_name) == True:
+    print("Output file already exists.")
+    sys.exit()
+
 with tempfile.TemporaryDirectory() as dname1:
     print(dname1)
     tmp_wav_name = os.path.join(dname1, 'tmp.wav')
     tmp_mov_name = os.path.join(dname1, 'tmp.mov')
     
-    # 動画から音声ファイルを分離
-    print("Separating audio files from video...")
-    command = "ffmpeg -i '"+input_video_name+"' -loglevel quiet -vn '"+tmp_wav_name+"'"
-    sb.call(command, shell=True)
-    
     if os.path.isfile(dest_csv_name) == True:
         print(f'Found {os.path.basename(dest_csv_name)}')
     else:
-        seg = Segmenter(vad_engine='smn', detect_gender=False)
+        # 動画から音声ファイルを分離
+        print("Separating audio files from video...")
+        command = "ffmpeg -i '"+input_video_name+"' -loglevel quiet -vn '"+tmp_wav_name+"'"
+        sb.call(command, shell=True)
         # 区間検出実行
+        seg = Segmenter(vad_engine='smn', detect_gender=False)
         print("Interval detection in progress...")
         segmentation = seg(tmp_wav_name)
         print("End of interval detection")
@@ -62,23 +70,29 @@ with tempfile.TemporaryDirectory() as dname1:
         del segmentation
     
     label = np.loadtxt(dest_csv_name, delimiter='\t', dtype=str, skiprows=1, usecols=[0])
-    speech = np.loadtxt(dest_csv_name, delimiter='\t', dtype=np.float32, skiprows=1, usecols=[1, 2])[label == 'speech']
-    # float16 では小数部分が切り捨てられてしまう # speech noEnergy noise music
+    segs = np.loadtxt(dest_csv_name, delimiter='\t', dtype=np.float32, skiprows=1, usecols=[1, 2])# float16 では小数部分が切り捨てられてしまう
     
     # 断片の数を確認
     if len(label[:]) == 1:
         print("The number of fragments is one.")
         sys.exit()
     
-    duration = speech[:, 1] - speech[:, 0]
-    # 瞬間的に音がなっている箇所を除く
-    bool_list = duration < min_keep_duration
-    speech = np.delete(speech, bool_list, 0)
-    duration = np.delete(duration, bool_list, 0)
-    del bool_list
+    if args.insert == None:
+        insert_wav_name = tmp_wav_name
+    elif os.path.isfile(args.insert) == False:
+        print("The specified insert wav file does not exist.")
+        insert_wav_name = tmp_wav_name
+    else:
+        insert_wav_name = os.path.abspath(args.insert)
     
-    # 分離した音声ファイルをwaveモジュールで読み込む
-    with wave.open(tmp_wav_name) as wav:
+    if os.path.isfile(insert_wav_name) == False:
+        # 動画から音声ファイルを分離
+        print("Separating audio files from video...")
+        command = "ffmpeg -i '"+input_video_name+"' -loglevel quiet -vn '"+insert_wav_name+"'"
+        sb.call(command, shell=True)
+    
+    # （分離した）音声ファイルをwaveモジュールで読み込む
+    with wave.open(insert_wav_name) as wav:
         samplewidth = wav.getsampwidth()
         nchannels = wav.getnchannels()
         framerate = wav.getframerate()
@@ -90,8 +104,25 @@ with tempfile.TemporaryDirectory() as dname1:
             data = np.frombuffer(wav.readframes(nframes), dtype='int32').copy()
         else:
             # https://qiita.com/Dsuke-K/items/2ad4945a81644db1e9ff
-            print("Sample width : ", samplewidth)
+            print("vseg: Sample width is ", samplewidth)
             sys.exit()
+    
+    if abs(nframes/framerate -  segs[-1, -1]) > 0.02:
+        if insert_wav_name == tmp_wav_name:
+            print(f'vseg: This csv file \"{os.path.basename(dest_csv_name)}\" is incompatible.')
+        else:
+            print(f'vseg: There is a {abs(nframes/framerate -  segs[-1, -1])} second difference between the extracted information and the insert wav file \"{insert_wav_name}\"')
+        sys.exit()
+    
+    # speech noEnergy noise music
+    speech = segs[label == 'speech']
+    
+    # 瞬間的に音がなっている箇所を除く
+    duration = speech[:, 1] - speech[:, 0]
+    bool_list = duration < min_keep_duration
+    speech = np.delete(speech, bool_list, 0)
+    duration = np.delete(duration, bool_list, 0)
+    del bool_list
     
     # speechではない長い区間を検出し，無音データで埋める
     print("Detecting a long section that is not a speech...")

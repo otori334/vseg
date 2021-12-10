@@ -26,6 +26,7 @@ parser = argparse.ArgumentParser(description='Video Segmentation Using inaSpeech
 parser.add_argument('arg1', help='[inputfile]')
 parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
+parser.add_argument('-d', '--dry', action='store_true')
 args = parser.parse_args()
 input_file_name = os.path.abspath(args.arg1)
 dest_wav_name = os.path.abspath(args.arg2)
@@ -69,6 +70,9 @@ with tempfile.TemporaryDirectory() as dname1:
         print("End of interval detection")
         seg2csv(segmentation, dest_csv_name)# 区間ごとのラベル,開始時間,終了時間をcsv形式で保存
         del segmentation
+    
+    if args.dry == True:
+        sys.exit()
     
     label = np.loadtxt(dest_csv_name, delimiter='\t', dtype=str, skiprows=1, usecols=[0])
     segs = np.loadtxt(dest_csv_name, delimiter='\t', dtype=np.float32, skiprows=1, usecols=[1, 2])# float16 では小数部分が切り捨てられてしまう

@@ -32,6 +32,7 @@ parser.add_argument('arg1', help='[inputfile]')
 parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
 parser.add_argument('-i', '--insert', default=None, help='[pathname of insert wav file]')
+parser.add_argument('-f', '--ffmpeg', default="", help='[Arguments to add to ffmpeg]')
 args = parser.parse_args()
 input_video_name = os.path.abspath(args.arg1)
 dest_mov_name = os.path.abspath(args.arg2)
@@ -107,7 +108,7 @@ with tempfile.TemporaryDirectory() as dname1:
             print("vseg: Sample width is ", samplewidth)
             sys.exit()
     
-    if abs(nframes/framerate -  segs[-1, -1]) > 0.02:
+    if abs(nframes/framerate -  segs[-1, -1]) > 0.03:
         if insert_wav_name == tmp_wav_name:
             print(f'vseg: This csv file \"{os.path.basename(dest_csv_name)}\" is incompatible.')
         else:
@@ -154,7 +155,7 @@ with tempfile.TemporaryDirectory() as dname1:
     with tempfile.TemporaryDirectory() as dname2:
         print("Cutting out the video...")
         for i in tqdm(range(num_speech)):
-            command = "ffmpeg -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
+            command = "ffmpeg -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' "+args.ffmpeg+" -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
             sb.call(command, shell=True)
         
         # 動画を繋げる

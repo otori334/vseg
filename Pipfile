@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+keras = "==2.5.0rc0"
+keras-nightly = "==2.5.0.dev2021032900"
+tensorflow = "==2.5.0rc3"
+inaSpeechSegmenter = "==0.6.7"
+tqdm = "==4.61.1"
+
+[dev-packages]
+
+[requires]
+python_version = "3.9.4"

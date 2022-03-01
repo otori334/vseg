@@ -108,7 +108,7 @@ with tempfile.TemporaryDirectory() as dname1:
             print("vseg: Sample width is ", samplewidth)
             sys.exit()
     
-    if abs(nframes/framerate -  segs[-1, -1]) > 0.03:
+    if abs(nframes/framerate -  segs[-1, -1]) > 0.035:
         if insert_wav_name == tmp_wav_name:
             print(f'vseg: This csv file \"{os.path.basename(dest_csv_name)}\" is incompatible.')
         else:
@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory() as dname1:
     
     # 動画の音声を差し替える
     print("Replacing audio...")
-    command = "ffmpeg -i '"+input_video_name+"' -loglevel info -i '"+tmp_wav_name+"' -c:v copy -c:a aac -strict experimental -map 0:v -map 1:a '"+tmp_mov_name+"'"
+    command = "ffmpeg -i '"+input_video_name+"' -loglevel info -hide_banner -i '"+tmp_wav_name+"' -c:v copy -c:a aac -strict experimental -map 0:v -map 1:a '"+tmp_mov_name+"'"
     sb.call(command, shell=True)
     print("Replacement completed.")
     

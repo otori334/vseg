@@ -155,7 +155,10 @@ with tempfile.TemporaryDirectory() as dname1:
     with tempfile.TemporaryDirectory() as dname2:
         print("Cutting out the video...")
         for i in tqdm(range(num_speech)):
-            command = "ffmpeg -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' "+args.ffmpeg+" -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
+            # あとでエンコードする必要が生まれるが速い．複数のパソコンで分担するならこちらが便利．
+            command = "ffmpeg -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' -c copy -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
+            #  ここよりも後段で f オプションを使った方がいい．あと f オプションは -c copy と併用できないことが多いのでこれはもう使うことはなさそう．一応コメントアウトしておく．
+            #command = "ffmpeg -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' "+args.ffmpeg+" -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
             sb.call(command, shell=True)
         
         # 動画を繋げる

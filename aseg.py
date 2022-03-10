@@ -3,6 +3,7 @@ from inaSpeechSegmenter import Segmenter
 from inaSpeechSegmenter import seg2csv
 import os
 import sys
+import shutil
 import subprocess as sb
 import wave as wave
 from tqdm import tqdm
@@ -27,6 +28,7 @@ parser.add_argument('arg1', help='[inputfile]')
 parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
 parser.add_argument('-d', '--dry', action='store_true')
+parser.add_argument('-f', '--ffmpeg', default=None, help='[which ffmpeg]')
 args = parser.parse_args()
 input_file_name = os.path.abspath(args.arg1)
 dest_wav_name = os.path.abspath(args.arg2)
@@ -44,6 +46,12 @@ if args.csv == None or os.path.isfile(args.csv) == False:
 else:
     dest_csv_name = os.path.abspath(args.csv)
 
+if shutil.which(args.ffmpeg) is None:
+    if shutil.which(ffmpeg) is None:
+        ffmpeg = '/usr/local/bin/ffmpeg'
+else:
+    ffmpeg = args.ffmpeg
+
 with tempfile.TemporaryDirectory() as dname1:
     print(dname1)
     
@@ -54,7 +62,7 @@ with tempfile.TemporaryDirectory() as dname1:
         tmp_wav_name = os.path.join(dname1, 'tmp.wav')
         # 動画から音声ファイルを分離
         print("Separating audio files from video...")
-        command = "ffmpeg -i '"+input_file_name+"' -loglevel quiet -vn '"+tmp_wav_name+"'"
+        command = ffmpeg+" -i '"+input_file_name+"' -loglevel quiet -vn '"+tmp_wav_name+"'"
         sb.call(command, shell=True)
     else:
         print("The extension of the first argument must be one of \'.wav\', \'.WAV\', \'.mp4\', \'.MP4\', \'.webm\', \'.WEBM\', \'.mov\' or \'.MOV\'.")
@@ -63,7 +71,7 @@ with tempfile.TemporaryDirectory() as dname1:
     if os.path.isfile(dest_csv_name) == True:
         print(f'Found {os.path.basename(dest_csv_name)}')
     else:
-        seg = Segmenter(vad_engine='smn', detect_gender=False)
+        seg = Segmenter(vad_engine='smn', detect_gender=False, ffmpeg=ffmpeg)
         # 区間検出実行
         print("Interval detection in progress...")
         segmentation = seg(tmp_wav_name)

@@ -28,7 +28,7 @@ parser.add_argument('arg1', help='[inputfile]')
 parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
 parser.add_argument('-d', '--dry', action='store_true')
-parser.add_argument('-f', '--ffmpeg', default="", help='[which ffmpeg]')
+parser.add_argument('-w', '--which_ffmpeg', default="", help='[which ffmpeg]')
 args = parser.parse_args()
 input_file_name = os.path.abspath(args.arg1)
 dest_wav_name = os.path.abspath(args.arg2)
@@ -46,12 +46,16 @@ if args.csv == None or os.path.isfile(args.csv) == False:
 else:
     dest_csv_name = os.path.abspath(args.csv)
 
-if os.path.isfile(args.ffmpeg) == True:
-    ffmpeg = args.ffmpeg
+if os.path.isfile(args.which_ffmpeg) == True:
+    ffmpeg = args.which_ffmpeg
 elif os.path.isfile('/usr/local/bin/ffmpeg') == True:
     ffmpeg = '/usr/local/bin/ffmpeg'
 elif os.path.isfile('/usr/bin/ffmpeg') == True:
     ffmpeg = '/usr/bin/ffmpeg'
+elif shutil.which('ffmpeg') is None:
+    raise(Exception("""ffmpeg program not found"""))
+else:
+    ffmpeg = 'ffmpeg'
 
 with tempfile.TemporaryDirectory() as dname1:
     print(dname1)

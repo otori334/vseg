@@ -33,8 +33,8 @@ parser.add_argument('arg1', help='[inputfile]')
 parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
 parser.add_argument('-i', '--insert', default=None, help='[pathname of insert wav file]')
-#parser.add_argument('-f', '--ffmpeg', default="", help='[Arguments to add to ffmpeg]')
-parser.add_argument('-f', '--ffmpeg', default="", help='[which ffmpeg]')
+parser.add_argument('-f', '--ffmpeg', default="", help='[Arguments to add to ffmpeg]')
+parser.add_argument('-w', '--which_ffmpeg', default="", help='[which ffmpeg]')
 args = parser.parse_args()
 input_video_name = os.path.abspath(args.arg1)
 dest_mov_name = os.path.abspath(args.arg2)
@@ -52,12 +52,16 @@ if os.path.isfile(dest_mov_name) == True:
     print("Output file already exists.")
     sys.exit()
 
-if os.path.isfile(args.ffmpeg) == True:
-    ffmpeg = args.ffmpeg
+if os.path.isfile(args.which_ffmpeg) == True:
+    ffmpeg = args.which_ffmpeg
 elif os.path.isfile('/usr/local/bin/ffmpeg') == True:
     ffmpeg = '/usr/local/bin/ffmpeg'
 elif os.path.isfile('/usr/bin/ffmpeg') == True:
     ffmpeg = '/usr/bin/ffmpeg'
+elif shutil.which('ffmpeg') is None:
+    raise(Exception("""ffmpeg program not found"""))
+else:
+    ffmpeg = 'ffmpeg'
 
 with tempfile.TemporaryDirectory() as dname1:
     print(dname1)
@@ -152,7 +156,7 @@ with tempfile.TemporaryDirectory() as dname1:
     
     # 動画の音声を差し替える
     print("Replacing audio...")
-    command = ffmpeg+" -i '"+input_video_name+"' -loglevel info -hide_banner -i '"+tmp_wav_name+"' -c:v copy -c:a aac -strict experimental -map 0:v -map 1:a '"+tmp_mov_name+"'"
+    command = ffmpeg+" -i '"+input_video_name+"' -loglevel error -hide_banner -stats -i '"+tmp_wav_name+"' -c:v copy -c:a aac -strict experimental -map 0:v -map 1:a '"+tmp_mov_name+"'"
     sb.call(command, shell=True)
     print("Replacement completed.")
     
@@ -164,18 +168,17 @@ with tempfile.TemporaryDirectory() as dname1:
     with tempfile.TemporaryDirectory() as dname2:
         print("Cutting out the video...")
         for i in tqdm(range(num_speech)):
-            # あとでエンコードする必要が生まれるが速い．複数のパソコンで分担するならこちらが便利．
-            command = ffmpeg+" -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' -c copy -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
-            #  ここよりも後段で f オプションを使った方がいい．あと f オプションは -c copy と併用できないことが多いのでこれはもう使うことはなさそう．一応コメントアウトしておく．
-            #command = ffmpeg+" -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' "+args.ffmpeg+" -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
+            # 速いが -c copy を使うと切断の最小粒度がキーフレームになり不正確なのでこの用途では使えない
+            #command = ffmpeg+" -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' -c copy -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
+            command = ffmpeg+" -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' "+args.ffmpeg+" -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
             sb.call(command, shell=True)
         
         # 動画を繋げる
         print("Merging videos...")
         target_list = os.path.join(dname1, 'target_list.txt')
         # 遅いが正確でファイルサイズはやや小さい
-        #command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+ffmpeg+" -loglevel info -safe 0 -f concat -i '"+target_list+"' '"+dest_mov_name+"'"
+        command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+ffmpeg+" -loglevel error -hide_banner -stats -safe 0 -f concat -i '"+target_list+"' '"+dest_mov_name+"'"
         # 速いが不正確でファイルサイズはやや大きい
-        command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+ffmpeg+" -loglevel quiet -safe 0 -f concat -i '"+target_list+"' -c copy '"+dest_mov_name+"'"
+        #command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+ffmpeg+" -loglevel quiet -safe 0 -f concat -i '"+target_list+"' -c copy '"+dest_mov_name+"'"
         
         sb.call(command, shell=True)

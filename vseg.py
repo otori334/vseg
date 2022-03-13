@@ -34,7 +34,7 @@ parser.add_argument('arg2', help='[outputfile]')
 parser.add_argument('-c', '--csv', default=None, help='[pathname of csv]')
 parser.add_argument('-i', '--insert', default=None, help='[pathname of insert wav file]')
 #parser.add_argument('-f', '--ffmpeg', default="", help='[Arguments to add to ffmpeg]')
-parser.add_argument('-f', '--ffmpeg', default=None, help='[which ffmpeg]')
+parser.add_argument('-f', '--ffmpeg', default="", help='[which ffmpeg]')
 args = parser.parse_args()
 input_video_name = os.path.abspath(args.arg1)
 dest_mov_name = os.path.abspath(args.arg2)
@@ -52,11 +52,12 @@ if os.path.isfile(dest_mov_name) == True:
     print("Output file already exists.")
     sys.exit()
 
-if shutil.which(args.ffmpeg) is None:
-    if shutil.which(ffmpeg) is None:
-        ffmpeg = '/usr/local/bin/ffmpeg'
-else:
+if os.path.isfile(args.ffmpeg) == True:
     ffmpeg = args.ffmpeg
+elif os.path.isfile('/usr/local/bin/ffmpeg') == True:
+    ffmpeg = '/usr/local/bin/ffmpeg'
+elif os.path.isfile('/usr/bin/ffmpeg') == True:
+    ffmpeg = '/usr/bin/ffmpeg'
 
 with tempfile.TemporaryDirectory() as dname1:
     print(dname1)

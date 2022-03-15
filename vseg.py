@@ -72,14 +72,14 @@ with tempfile.TemporaryDirectory() as dname1:
         print(f'Found {os.path.basename(dest_csv_name)}')
     else:
         # 動画から音声ファイルを分離
-        print("Separating audio files from video...")
+        print("Separating audio files from video...", file=sys.stderr)
         command = ffmpeg+" -i '"+input_video_name+"' -loglevel quiet -vn '"+tmp_wav_name+"'"
         sb.call(command, shell=True)
         # 区間検出実行
         seg = Segmenter(vad_engine='smn', detect_gender=False, ffmpeg=ffmpeg)
-        print("Interval detection in progress...")
+        print("Interval detection in progress...", file=sys.stderr)
         segmentation = seg(tmp_wav_name)
-        print("End of interval detection")
+        print("End of interval detection", file=sys.stderr)
         seg2csv(segmentation, dest_csv_name)# 区間ごとのラベル,開始時間,終了時間をcsv形式で保存
         del segmentation
     
@@ -101,7 +101,7 @@ with tempfile.TemporaryDirectory() as dname1:
     
     if os.path.isfile(insert_wav_name) == False:
         # 動画から音声ファイルを分離
-        print("Separating audio files from video...")
+        print("Separating audio files from video...", file=sys.stderr)
         command = ffmpeg+" -i '"+input_video_name+"' -loglevel quiet -vn '"+insert_wav_name+"'"
         sb.call(command, shell=True)
     
@@ -118,7 +118,7 @@ with tempfile.TemporaryDirectory() as dname1:
             data = np.frombuffer(wav.readframes(nframes), dtype='int32').copy()
         else:
             # https://qiita.com/Dsuke-K/items/2ad4945a81644db1e9ff
-            print("vseg: Sample width is ", samplewidth)
+            print(f'vseg: Sample width : {samplewidth}')
             sys.exit()
     
     if abs(nframes/framerate -  segs[-1, -1]) > 0.035:
@@ -139,7 +139,7 @@ with tempfile.TemporaryDirectory() as dname1:
     del bool_list
     
     # speechではない長い区間を検出し，無音データで埋める
-    print("Detecting a long section that is not a speech...")
+    print("Detecting a long section that is not a speech...", file=sys.stderr)
     for i in tqdm(range(len(speech) - 1)):
         if (speech[i + 1][0] - speech[i][1] > padding_silence_duration):
             data[round(speech[i][1] * framerate_nchannels):round(speech[i + 1][0] * framerate_nchannels)] = 0
@@ -155,10 +155,10 @@ with tempfile.TemporaryDirectory() as dname1:
         wav.writeframes(data)
     
     # 動画の音声を差し替える
-    print("Replacing audio...")
+    print("Replacing audio...", file=sys.stderr)
     command = ffmpeg+" -i '"+input_video_name+"' -loglevel error -hide_banner -stats -i '"+tmp_wav_name+"' -c:v copy -c:a aac -strict experimental -map 0:v -map 1:a '"+tmp_mov_name+"'"
     sb.call(command, shell=True)
-    print("Replacement completed.")
+    print("Replacement completed.", file=sys.stderr)
     
     # 動画を切り出す
     speech = speech.astype('str')
@@ -166,7 +166,7 @@ with tempfile.TemporaryDirectory() as dname1:
     num_speech = len(speech) # 断片の個数
     num_digits = len(str(num_speech)) # 断片の個数の桁数
     with tempfile.TemporaryDirectory() as dname2:
-        print("Cutting out the video...")
+        print("Cutting out the video...", file=sys.stderr)
         for i in tqdm(range(num_speech)):
             # 速いが -c copy を使うと切断の最小粒度がキーフレームになり不正確なのでこの用途では使えない
             #command = ffmpeg+" -ss "+speech[i][0]+" -i '"+tmp_mov_name+"' -c copy -loglevel quiet -t "+duration[i]+" '"+dname2+"/"+str(i).zfill(num_digits)+".mov'"
@@ -174,7 +174,7 @@ with tempfile.TemporaryDirectory() as dname1:
             sb.call(command, shell=True)
         
         # 動画を繋げる
-        print("Merging videos...")
+        print("Merging videos...", file=sys.stderr)
         target_list = os.path.join(dname1, 'target_list.txt')
         # 遅いが正確でファイルサイズはやや小さい
         command = "(for f in \""+dname2+"\"/*.mov; do echo file \\'$f\\'; done)>'"+target_list+"'; "+ffmpeg+" -loglevel error -hide_banner -stats -safe 0 -f concat -i '"+target_list+"' '"+dest_mov_name+"'"

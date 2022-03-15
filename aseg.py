@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory() as dname1:
     elif input_splitext == '.mov' or input_splitext == '.MOV' or input_splitext == '.mp4' or input_splitext == '.MP4' or input_splitext == '.webm' or input_splitext == '.WEBM':
         tmp_wav_name = os.path.join(dname1, 'tmp.wav')
         # 動画から音声ファイルを分離
-        print("Separating audio files from video...")
+        print("Separating audio files from video...", file=sys.stderr)
         command = ffmpeg+" -i '"+input_file_name+"' -loglevel quiet -vn '"+tmp_wav_name+"'"
         sb.call(command, shell=True)
     else:
@@ -78,9 +78,9 @@ with tempfile.TemporaryDirectory() as dname1:
     else:
         seg = Segmenter(vad_engine='smn', detect_gender=False, ffmpeg=ffmpeg)
         # 区間検出実行
-        print("Interval detection in progress...")
+        print("Interval detection in progress...", file=sys.stderr)
         segmentation = seg(tmp_wav_name)
-        print("End of interval detection")
+        print("End of interval detection", file=sys.stderr)
         seg2csv(segmentation, dest_csv_name)# 区間ごとのラベル,開始時間,終了時間をcsv形式で保存
         del segmentation
     
@@ -109,11 +109,12 @@ with tempfile.TemporaryDirectory() as dname1:
             data = np.frombuffer(wav.readframes(nframes), dtype='int32').copy()
         else:
             # https://qiita.com/Dsuke-K/items/2ad4945a81644db1e9ff
-            print("Sample width : ", samplewidth)
+            print(f'Sample width : {samplewidth}')
             sys.exit()
     
-    if abs(nframes/framerate -  segs[-1, -1]) > 0.02:
-        print(f'vseg: This csv file \"{os.path.basename(dest_csv_name)}\" is incompatible.')
+    if abs(nframes/framerate -  segs[-1, -1]) > 0.035:
+        print(f'aseg: This csv file \"{os.path.basename(dest_csv_name)}\" is incompatible.')
+        sys.exit()
     
     # speech noEnergy noise music
     speech = segs[label == 'speech']
@@ -128,7 +129,7 @@ with tempfile.TemporaryDirectory() as dname1:
     # speechではない長い区間を検出し，無音データで埋める
     bool_list = np.zeros(len_data, dtype='bool')
     padding_time_ = round(padding_time * framerate_nchannels)
-    print("Detecting a long section that is not a speech...")
+    print("Detecting a long section that is not a speech...", file=sys.stderr)
     for i in tqdm(range(len(speech) - 1)):
         if (speech[i + 1][0] - speech[i][1] > padding_silence_duration):
             point_1 = round(speech[i][1] * framerate_nchannels)
